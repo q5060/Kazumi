@@ -95,13 +95,15 @@ abstract class _PlayerSubtitleController with Store {
   Future<void> loadExternal() async {
     final player = _player;
     if (player == null) return;
-    // Android has no MIME type for srt/ass, so a custom filter hides them.
+    // Android has no MIME type and iOS no UTI for ass/ssa, so a custom filter
+    // hides them; the extension is checked after picking instead.
+    final filterByExtension = !Platform.isAndroid && !Platform.isIOS;
     final FilePickerResult? result;
     try {
       result = await FilePicker.platform.pickFiles(
         dialogTitle: '选择字幕文件',
-        type: Platform.isAndroid ? FileType.any : FileType.custom,
-        allowedExtensions: Platform.isAndroid ? null : subtitleFileExtensions,
+        type: filterByExtension ? FileType.custom : FileType.any,
+        allowedExtensions: filterByExtension ? subtitleFileExtensions : null,
         lockParentWindow: true,
       );
     } catch (e) {
