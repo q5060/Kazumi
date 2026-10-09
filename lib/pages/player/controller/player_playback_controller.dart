@@ -6,6 +6,7 @@ import 'dart:typed_data';
 import 'package:flutter_volume_controller/flutter_volume_controller.dart';
 import 'package:kazumi/bean/dialog/dialog_helper.dart';
 import 'package:kazumi/pages/player/controller/player_debug_controller.dart';
+import 'package:kazumi/pages/player/controller/player_subtitle_controller.dart';
 import 'package:kazumi/pages/player/controller/player_super_resolution.dart';
 import 'package:kazumi/services/shaders/shader_asset_service.dart';
 import 'package:kazumi/utils/constants.dart';
@@ -59,12 +60,14 @@ abstract class _PlayerPlaybackController with Store {
   _PlayerPlaybackController({
     required this.shaderAssetService,
     required this.debug,
+    required this.subtitles,
     required this.videoUrl,
     required this.isLocalPlayback,
   });
 
   final ShaderAssetService shaderAssetService;
   final PlayerDebugController debug;
+  final PlayerSubtitleController subtitles;
   final String Function() videoUrl;
   final bool Function() isLocalPlayback;
   late final PlaybackCachePolicy cachePolicy = PlaybackCachePolicy(
@@ -132,6 +135,12 @@ abstract class _PlayerPlaybackController with Store {
   Future<void> _cancelDebugInfo() async {
     try {
       await debug.cancel();
+    } catch (_) {}
+  }
+
+  Future<void> _cancelSubtitleInfo() async {
+    try {
+      await subtitles.cancel();
     } catch (_) {}
   }
 
@@ -312,6 +321,10 @@ abstract class _PlayerPlaybackController with Store {
         isCurrentPlayer: isCurrentPlayer,
         playerDebugMode: playerDebugMode,
       );
+      if (!isCurrentPlayer(player)) {
+        return await _discardIfNotCurrent(candidate);
+      }
+      await subtitles.setup(player, isCurrentPlayer: isCurrentPlayer);
       if (!isCurrentPlayer(player)) {
         return await _discardIfNotCurrent(candidate);
       }
@@ -626,6 +639,7 @@ abstract class _PlayerPlaybackController with Store {
     await Future.wait([
       ownedPlayer?.dispose() ?? Future<void>.value(),
       _cancelDebugInfo(),
+      _cancelSubtitleInfo(),
     ]);
   }
 

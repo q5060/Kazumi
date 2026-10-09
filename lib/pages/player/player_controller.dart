@@ -15,6 +15,7 @@ import 'package:kazumi/pages/player/controller/player_playback_controller.dart';
 import 'package:kazumi/pages/player/controller/player_super_resolution.dart';
 import 'package:kazumi/pages/player/controller/player_syncplay_controller.dart';
 import 'package:kazumi/pages/player/controller/player_screenshot_controller.dart';
+import 'package:kazumi/pages/player/controller/player_subtitle_controller.dart';
 import 'package:kazumi/services/storage/storage.dart';
 import 'package:kazumi/services/logging/logger.dart';
 import 'package:kazumi/services/shaders/shader_asset_service.dart';
@@ -44,11 +45,13 @@ class PlayerController implements Disposable {
   final PlayerPanelController panel = PlayerPanelController();
   final PlayerScreenshotController screenshots = PlayerScreenshotController();
   final PlayerDebugController debug = PlayerDebugController();
+  final PlayerSubtitleController subtitles = PlayerSubtitleController();
 
   late final PlayerDanmakuController danmaku;
   late final PlayerPlaybackController playback = PlayerPlaybackController(
     shaderAssetService: shaderAssetService,
     debug: debug,
+    subtitles: subtitles,
     videoUrl: () => videoUrl,
     isLocalPlayback: () => isLocalPlayback,
   );

@@ -10,6 +10,7 @@ import 'package:kazumi/bean/widget/play_pause_icon.dart';
 import 'package:kazumi/pages/player/player_adjustment_hud.dart';
 import 'package:kazumi/pages/player/danmaku_destination_sheet.dart';
 import 'package:kazumi/pages/player/controller/player_aspect_ratio.dart';
+import 'package:kazumi/pages/player/controller/player_subtitle_controller.dart';
 import 'package:kazumi/pages/player/controller/player_super_resolution.dart';
 import 'package:kazumi/bean/widget/embedded_native_control_area.dart';
 import 'package:kazumi/pages/player/player_panel_hold.dart';
@@ -587,6 +588,29 @@ class _PlayerItemPanelState extends State<PlayerItemPanel> {
         onSelected: widget.handleSuperResolutionChange,
       );
 
+  List<Widget> get _subtitleItems {
+    final subtitles = playerController.subtitles;
+    final current = subtitles.current;
+    return [
+      KazumiMenuItem(
+        onPressed: subtitles.disable,
+        label: '关闭字幕',
+        selected: subtitles.disabled,
+      ),
+      for (final track in subtitles.tracks)
+        KazumiMenuItem(
+          onPressed: () => subtitles.select(track),
+          label: subtitleTrackLabel(track),
+          selected: isSubtitleTrackSelected(track, current),
+        ),
+      const Divider(height: 1),
+      KazumiMenuItem(
+        onPressed: subtitles.loadExternal,
+        label: '加载外挂字幕…',
+      ),
+    ];
+  }
+
   Widget _menuButton(
           {required Widget child,
           required List<Widget> items,
@@ -663,6 +687,11 @@ class _PlayerItemPanelState extends State<PlayerItemPanel> {
           child: const Icon(Icons.aspect_ratio_rounded, color: Colors.white),
           tooltip: '视频比例',
           items: _aspectRatioItems,
+        ),
+        _menuButton(
+          child: const Icon(Icons.closed_caption_rounded, color: Colors.white),
+          tooltip: '字幕',
+          items: _subtitleItems,
         ),
         if (widget.onToggleSidePanel != null)
           IconButton(
@@ -854,6 +883,9 @@ class _PlayerItemPanelState extends State<PlayerItemPanel> {
                     SubmenuButton(
                         menuChildren: _superResolutionItems,
                         child: const Text('超分辨率')),
+                    SubmenuButton(
+                        menuChildren: _subtitleItems,
+                        child: const Text('字幕')),
                     _syncPlayMenuItem,
                   ],
                   KazumiMenuItem(
