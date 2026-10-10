@@ -6,6 +6,8 @@ import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:kazumi/bean/dialog/dialog_helper.dart';
 import 'package:kazumi/services/logging/logger.dart';
+import 'package:kazumi/services/player/jimaku_subtitle_service.dart';
+import 'package:kazumi/services/storage/storage.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:mobx/mobx.dart';
 
@@ -34,6 +36,11 @@ String subtitleTrackLabel(SubtitleTrack track) {
   return '轨道 ${track.id}';
 }
 
+String formatSubtitleDelay(double seconds) {
+  final sign = seconds > 0 ? '+' : '';
+  return '$sign${seconds.toStringAsFixed(1)} 秒';
+}
+
 /// External tracks are selected by URI, while mpv lists them by numeric id,
 /// so they can only be matched back through the title passed to `sub-add`.
 bool isSubtitleTrackSelected(SubtitleTrack track, SubtitleTrack current) {
@@ -51,6 +58,11 @@ abstract class _PlayerSubtitleController with Store {
   List<SubtitleTrack> tracks = const [];
   @observable
   SubtitleTrack current = SubtitleTrack.auto();
+
+  /// Seconds; positive shows subtitles later, negative earlier. Kept across
+  /// episodes because a source's offset is usually the same for a season.
+  @observable
+  double delay = 0;
 
   bool get disabled => current.id == 'no';
 
@@ -73,6 +85,9 @@ abstract class _PlayerSubtitleController with Store {
     _trackSubscription = player.stream.track.listen((event) {
       current = event.subtitle;
     });
+    if (delay != 0) {
+      await setDelay(delay);
+    }
   }
 
   Future<void> cancel() async {
@@ -122,6 +137,80 @@ abstract class _PlayerSubtitleController with Store {
     }
     if (!identical(_player, player)) return;
     await _setTrack(player, SubtitleTrack.uri(path, title: file.name));
+  }
+
+  Future<void> autoLoadJapanese({
+    required String animeName,
+    required int episode,
+  }) async {
+    final player = _player;
+    final service = JimakuSubtitleService.instance;
+    if (player == null ||
+        !service.hasApiKey ||
+        !GStorage.getSetting(SettingsKeys.autoLoadJapaneseSubtitle)) {
+      return;
+    }
+    try {
+      final entries = await service.searchEntries(animeName);
+      final entry = pickJimakuEntry(entries, animeName);
+      if (entry == null) {
+        if (identical(_player, player)) {
+          KazumiDialog.showToast(message: 'Jimaku 上没有这部番的日文字幕');
+        }
+        return;
+      }
+      final files = sortJimakuSubtitleFiles(
+          await service.listFiles(entry.id, episode: episode));
+      if (!identical(_player, player)) return;
+      if (files.isEmpty) {
+        KazumiDialog.showToast(message: '没有找到第 $episode 集的日文字幕，可在字幕菜单中搜索');
+        return;
+      }
+      await _loadJimakuFile(player, files.first);
+    } on JimakuException catch (e) {
+      if (identical(_player, player)) {
+        KazumiDialog.showToast(message: e.message);
+      }
+    } catch (e) {
+      KazumiLogger()
+          .w('PlayerSubtitleController: Japanese auto-load failed', error: e);
+    }
+  }
+
+  Future<void> loadJimakuFile(JimakuFile file) async {
+    final player = _player;
+    if (player == null) return;
+    try {
+      await _loadJimakuFile(player, file);
+    } on JimakuException catch (e) {
+      KazumiDialog.showToast(message: e.message);
+    }
+  }
+
+  Future<void> _loadJimakuFile(Player player, JimakuFile file) async {
+    final path = await JimakuSubtitleService.instance.download(file);
+    if (!identical(_player, player)) return;
+    await _setTrack(player, SubtitleTrack.uri(path, title: file.name));
+    KazumiDialog.showToast(message: '已加载日文字幕：${file.name}');
+  }
+
+  Future<void> adjustDelay(double seconds) => setDelay(delay + seconds);
+
+  Future<void> setDelay(double seconds) async {
+    final value = (seconds * 10).round() / 10;
+    final player = _player;
+    if (player == null) {
+      delay = value;
+      return;
+    }
+    try {
+      await (player.platform as NativePlayer)
+          .setProperty('sub-delay', value.toString());
+      delay = value;
+    } catch (e) {
+      KazumiLogger()
+          .w('PlayerSubtitleController: failed to set delay', error: e);
+    }
   }
 
   Future<void> _setTrack(Player? player, SubtitleTrack track) async {

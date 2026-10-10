@@ -40,6 +40,8 @@ class _PlayerSettingsPageState extends State<PlayerSettingsPage> {
   late bool autoPlayNext;
   late bool backgroundPlayback;
   late bool brightnessVolumeGesture;
+  late bool autoLoadJapaneseSubtitle;
+  late String jimakuApiKey;
   late int playerButtonSkipTime;
   late int playerArrowKeySkipTime;
   late int playerLogLevel;
@@ -86,6 +88,52 @@ class _PlayerSettingsPageState extends State<PlayerSettingsPage> {
 
     playerControllerLayerDisappearTime = GStorage.getSetting<int>(
         SettingsKeys.playerControllerLayerDisappearTime);
+    autoLoadJapaneseSubtitle =
+        GStorage.getSetting<bool>(SettingsKeys.autoLoadJapaneseSubtitle);
+    jimakuApiKey = GStorage.getSetting<String>(SettingsKeys.jimakuApiKey);
+  }
+
+  Future<void> updateJimakuApiKey() async {
+    String input = jimakuApiKey;
+    final String? newKey = await KazumiDialog.show<String>(
+      builder: (context) => AlertDialog(
+        title: const Text('Jimaku API Key'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('登录 jimaku.cc 后，在 Account 页面生成 API Key。留空则关闭日文字幕搜索。'),
+            const SizedBox(height: 12),
+            TextFormField(
+              initialValue: jimakuApiKey,
+              autocorrect: false,
+              enableSuggestions: false,
+              decoration: const InputDecoration(labelText: 'API Key'),
+              onChanged: (value) => input = value,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => KazumiDialog.dismiss(),
+            child: Text(
+              '取消',
+              style: TextStyle(color: Theme.of(context).colorScheme.outline),
+            ),
+          ),
+          TextButton(
+            onPressed: () => KazumiDialog.dismiss(popWith: input.trim()),
+            child: const Text('保存'),
+          ),
+        ],
+      ),
+    );
+    if (newKey == null || newKey == jimakuApiKey) return;
+    await GStorage.putSetting<String>(SettingsKeys.jimakuApiKey, newKey);
+    if (!mounted) return;
+    setState(() {
+      jimakuApiKey = newKey;
+    });
   }
 
   Future<void> resetPlayerSettings() async {
@@ -406,6 +454,31 @@ class _PlayerSettingsPageState extends State<PlayerSettingsPage> {
                 title: Text('隐身模式'),
                 description: Text('不保留观看记录'),
                 initialValue: privateMode,
+              ),
+            ],
+          ),
+          SettingsSection(
+            title: Text('日文字幕'),
+            tiles: [
+              SettingsTile(
+                leading: Icons.key_rounded,
+                onPressed: (_) => updateJimakuApiKey(),
+                title: Text('Jimaku API Key'),
+                description: Text('用于从 jimaku.cc 搜索日文字幕'),
+                value: Text(jimakuApiKey.isEmpty ? '未设置' : '已设置'),
+              ),
+              SettingsTile.switchTile(
+                leading: Icons.closed_caption_rounded,
+                onToggle: (value) async {
+                  autoLoadJapaneseSubtitle = value ?? !autoLoadJapaneseSubtitle;
+                  await GStorage.putSetting<bool>(
+                      SettingsKeys.autoLoadJapaneseSubtitle,
+                      autoLoadJapaneseSubtitle);
+                  setState(() {});
+                },
+                title: Text('自动加载日文字幕'),
+                description: Text('开始播放时按集数自动下载并加载'),
+                initialValue: autoLoadJapaneseSubtitle,
               ),
             ],
           ),

@@ -533,6 +533,7 @@ abstract class _VideoPageController with Store implements Disposable {
     if (session.isActive && initialized) {
       playingEpisode = selection;
       unawaited(_loadPlaybackDanmaku(playerController, params, session));
+      unawaited(_loadJapaneseSubtitle(playerController, params));
     } else if (session.isActive) {
       _playbackSessions.cancel();
     }
@@ -573,6 +574,19 @@ abstract class _VideoPageController with Store implements Disposable {
       }
       KazumiLogger().w('VideoPageController: failed to load danmaku', error: e);
     }
+  }
+
+  Future<void> _loadJapaneseSubtitle(
+    PlayerController playerController,
+    PlaybackInitParams params,
+  ) {
+    final name = bangumiItem.name.isNotEmpty
+        ? bangumiItem.name
+        : params.bangumiName ?? '';
+    return playerController.subtitles.autoLoadJapanese(
+      animeName: name,
+      episode: params.danmakuEpisodeNumber,
+    );
   }
 
   void cancelAutomaticDanmakuLoad() {
@@ -654,6 +668,7 @@ abstract class _VideoPageController with Store implements Disposable {
           road: resolvedEpisode.roadIndex,
         );
         unawaited(_loadPlaybackDanmaku(playerController, params, session));
+        unawaited(_loadJapaneseSubtitle(playerController, params));
       } else if (session.isActive) {
         _playbackSessions.cancel();
       }

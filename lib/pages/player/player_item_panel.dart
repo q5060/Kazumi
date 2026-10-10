@@ -9,6 +9,7 @@ import 'package:kazumi/bean/widget/kazumi_menu.dart';
 import 'package:kazumi/bean/widget/play_pause_icon.dart';
 import 'package:kazumi/pages/player/player_adjustment_hud.dart';
 import 'package:kazumi/pages/player/danmaku_destination_sheet.dart';
+import 'package:kazumi/pages/player/jimaku_subtitle_sheet.dart';
 import 'package:kazumi/pages/player/controller/player_aspect_ratio.dart';
 import 'package:kazumi/pages/player/controller/player_subtitle_controller.dart';
 import 'package:kazumi/pages/player/controller/player_super_resolution.dart';
@@ -605,10 +606,40 @@ class _PlayerItemPanelState extends State<PlayerItemPanel> {
         ),
       const Divider(height: 1),
       KazumiMenuItem(
+        onPressed: _searchJapaneseSubtitle,
+        label: '搜索日文字幕…',
+      ),
+      KazumiMenuItem(
         onPressed: subtitles.loadExternal,
         label: '加载外挂字幕…',
       ),
+      const Divider(height: 1),
+      KazumiMenuItem(
+        onPressed: () => subtitles.adjustDelay(-0.5),
+        label: '字幕提前 0.5 秒',
+      ),
+      KazumiMenuItem(
+        onPressed: () => subtitles.adjustDelay(0.5),
+        label: '字幕延后 0.5 秒',
+      ),
+      if (subtitles.delay != 0)
+        KazumiMenuItem(
+          onPressed: () => subtitles.setDelay(0),
+          label: '重置时间（当前 ${formatSubtitleDelay(subtitles.delay)}）',
+        ),
     ];
+  }
+
+  Future<void> _searchJapaneseSubtitle() async {
+    final bangumi = videoPageController.bangumiItem;
+    final file = await showJimakuSubtitleSheet(
+      context,
+      animeName: bangumi.name.isNotEmpty ? bangumi.name : bangumi.nameCn,
+      episode: playerController.currentDanmakuEpisodeNumber,
+    );
+    if (file != null) {
+      await playerController.subtitles.loadJimakuFile(file);
+    }
   }
 
   Widget _menuButton(

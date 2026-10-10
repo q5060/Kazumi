@@ -470,6 +470,16 @@ class SettingsKeys {
     'list',
     group: SettingGroup.interface,
   );
+  static const autoLoadJapaneseSubtitle = SettingKey<bool>(
+    'autoLoadJapaneseSubtitle',
+    true,
+    group: SettingGroup.player,
+  );
+  static const jimakuApiKey = SettingKey<String>(
+    'jimakuApiKey',
+    '',
+    group: SettingGroup.misc,
+  );
   static const downloadParallelEpisodes = SettingKey<int>(
     _SettingBoxKey.downloadParallelEpisodes,
     2,
@@ -644,6 +654,8 @@ class SettingsKeys {
     proxyTestUrl,
     showRating,
     defaultCollectLayout,
+    autoLoadJapaneseSubtitle,
+    jimakuApiKey,
     downloadParallelEpisodes,
     downloadParallelSegments,
     downloadDanmaku,
