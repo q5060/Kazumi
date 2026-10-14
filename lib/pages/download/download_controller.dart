@@ -8,6 +8,8 @@ import 'package:kazumi/plugins/plugins_controller.dart';
 import 'package:kazumi/repositories/download_repository.dart';
 import 'package:kazumi/services/download/background_download_service.dart';
 import 'package:kazumi/services/download/download_manager.dart';
+import 'package:kazumi/services/download/japanese_subtitle_cache.dart';
+import 'package:kazumi/services/player/jimaku_subtitle_service.dart';
 import 'package:kazumi/utils/format.dart';
 import 'package:kazumi/services/logging/logger.dart';
 import 'package:kazumi/services/storage/storage.dart';
@@ -31,6 +33,7 @@ abstract class _DownloadController with Store {
   final PluginsController _pluginsController;
   final _backgroundService = BackgroundDownloadService();
   final _resolverPool = VideoSourceResolverPool();
+  late final _japaneseSubtitles = JapaneseSubtitleCache(_repository);
 
   @observable
   ObservableList<DownloadRecord> records = ObservableList<DownloadRecord>();
@@ -150,6 +153,10 @@ abstract class _DownloadController with Store {
         episode.status == DownloadStatus.paused;
     if (isFinalState) {
       _speeds.remove(key);
+      if (episode.status == DownloadStatus.completed) {
+        _fetchAndCacheJapaneseSubtitleAsync(
+            recordKey, episodeNumber, episode.downloadDirectory);
+      }
     } else {
       _speeds[key] = speed;
     }
@@ -308,6 +315,7 @@ abstract class _DownloadController with Store {
         ),
       ),
       record.createdAt,
+      bangumiOriginalName: record.bangumiOriginalName,
     );
   }
 
@@ -460,6 +468,7 @@ abstract class _DownloadController with Store {
   Future<void> startDownload({
     required int bangumiId,
     required String bangumiName,
+    String bangumiOriginalName = '',
     required String bangumiCover,
     required String pluginName,
     required int episodeNumber,
@@ -478,6 +487,9 @@ abstract class _DownloadController with Store {
           {},
           DateTime.now(),
         );
+    if (record.bangumiOriginalName.isEmpty) {
+      record.bangumiOriginalName = bangumiOriginalName;
+    }
 
     if (episodePageUrl.isNotEmpty) {
       for (final entry in record.episodes.entries) {
@@ -755,6 +767,27 @@ abstract class _DownloadController with Store {
         // 弹幕获取失败不影响下载
         KazumiLogger()
             .w('DownloadController: failed to fetch danmaku', error: e);
+      }
+    });
+  }
+
+  void _fetchAndCacheJapaneseSubtitleAsync(
+      String recordKey, int episodeNumber, String downloadDirectory) {
+    if (!JimakuSubtitleService.instance.hasApiKey ||
+        !GStorage.getSetting(SettingsKeys.autoLoadJapaneseSubtitle)) {
+      return;
+    }
+    Future(() async {
+      try {
+        if (await _japaneseSubtitles.findIn(downloadDirectory) != null) return;
+        final path = await _japaneseSubtitles.fetch(recordKey, episodeNumber);
+        KazumiLogger().i(
+            'DownloadController: Japanese subtitle for episode $episodeNumber: ${path ?? 'not found'}');
+      } catch (e) {
+        // 字幕获取失败不影响下载，离线播放时会再尝试
+        KazumiLogger().w(
+            'DownloadController: failed to fetch Japanese subtitle',
+            error: e);
       }
     });
   }

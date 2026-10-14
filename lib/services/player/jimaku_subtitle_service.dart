@@ -130,13 +130,30 @@ class JimakuSubtitleService {
     return [for (final item in data as List) JimakuFile.fromJson(item)];
   }
 
-  Future<String> download(JimakuFile file) async {
-    final directory = Directory(
-      p.join(await getPlayerTempPath(), 'jimaku_subtitles'),
+  /// Downloads the preferred subtitle of [episode], or returns null when
+  /// Jimaku has none.
+  Future<String?> fetchEpisodeSubtitle(
+    String animeName,
+    int episode, {
+    String? directory,
+  }) async {
+    final entry = pickJimakuEntry(await searchEntries(animeName), animeName);
+    if (entry == null) return null;
+    final files = sortJimakuSubtitleFiles(
+      await listFiles(entry.id, episode: episode),
     );
-    await directory.create(recursive: true);
+    if (files.isEmpty) return null;
+    return download(files.first, directory: directory);
+  }
+
+  /// Saves into a temporary directory unless [directory] is given.
+  Future<String> download(JimakuFile file, {String? directory}) async {
+    final target = Directory(
+      directory ?? p.join(await getPlayerTempPath(), 'jimaku_subtitles'),
+    );
+    await target.create(recursive: true);
     final safeName = file.name.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
-    final savePath = p.join(directory.path, safeName);
+    final savePath = p.join(target.path, safeName);
     try {
       await DioFactory.apiDio.download(file.url, savePath, options: _options);
     } on DioException catch (e) {

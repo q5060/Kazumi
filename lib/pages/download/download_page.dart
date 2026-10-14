@@ -247,7 +247,9 @@ class _DownloadPageState extends State<DownloadPage> {
     final bangumiItem = BangumiItem(
       id: record.bangumiId,
       type: 2,
-      name: record.bangumiName,
+      name: record.bangumiOriginalName.isNotEmpty
+          ? record.bangumiOriginalName
+          : record.bangumiName,
       nameCn: record.bangumiName,
       summary: '',
       airDate: '',

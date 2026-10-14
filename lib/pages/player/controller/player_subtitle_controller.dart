@@ -10,6 +10,7 @@ import 'package:kazumi/services/player/jimaku_subtitle_service.dart';
 import 'package:kazumi/services/storage/storage.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:mobx/mobx.dart';
+import 'package:path/path.dart' as p;
 
 part 'player_subtitle_controller.g.dart';
 
@@ -156,34 +157,23 @@ abstract class _PlayerSubtitleController with Store {
     await _setTrack(player, SubtitleTrack.uri(path, title: file.name));
   }
 
+  /// [fetch] returns the subtitle path, or null when none exists.
   Future<void> autoLoadJapanese({
-    required String animeName,
     required int episode,
+    required Future<String?> Function() fetch,
   }) async {
     final player = _player;
-    final service = JimakuSubtitleService.instance;
-    if (player == null ||
-        !service.hasApiKey ||
-        !GStorage.getSetting(SettingsKeys.autoLoadJapaneseSubtitle)) {
-      return;
-    }
+    if (player == null) return;
     try {
-      final entries = await service.searchEntries(animeName);
-      final entry = pickJimakuEntry(entries, animeName);
-      if (entry == null) {
-        if (identical(_player, player)) {
-          KazumiDialog.showToast(message: 'Jimaku 上没有这部番的日文字幕');
-        }
-        return;
-      }
-      final files = sortJimakuSubtitleFiles(
-          await service.listFiles(entry.id, episode: episode));
+      final path = await fetch();
       if (!identical(_player, player)) return;
-      if (files.isEmpty) {
+      if (path == null) {
         KazumiDialog.showToast(message: '没有找到第 $episode 集的日文字幕，可在字幕菜单中搜索');
         return;
       }
-      await _loadJimakuFile(player, files.first);
+      final name = p.basename(path);
+      await _setTrack(player, SubtitleTrack.uri(path, title: name));
+      KazumiDialog.showToast(message: '已加载日文字幕：$name');
     } on JimakuException catch (e) {
       if (identical(_player, player)) {
         KazumiDialog.showToast(message: e.message);

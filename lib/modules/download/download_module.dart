@@ -22,6 +22,10 @@ class DownloadRecord {
   @HiveField(5)
   DateTime createdAt;
 
+  /// Japanese title, used to search Japanese subtitles.
+  @HiveField(6, defaultValue: '')
+  String bangumiOriginalName;
+
   String get key => '${pluginName}_$bangumiId';
 
   DownloadRecord(
@@ -30,8 +34,9 @@ class DownloadRecord {
     this.bangumiCover,
     this.pluginName,
     this.episodes,
-    this.createdAt,
-  );
+    this.createdAt, {
+    this.bangumiOriginalName = '',
+  });
 }
 
 @HiveType(typeId: 8)

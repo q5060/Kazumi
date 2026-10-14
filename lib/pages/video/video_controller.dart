@@ -10,6 +10,8 @@ import 'package:kazumi/modules/download/download_module.dart';
 import 'package:kazumi/modules/history/history_module.dart';
 import 'package:kazumi/repositories/download_repository.dart';
 import 'package:kazumi/services/download/download_manager.dart';
+import 'package:kazumi/services/download/japanese_subtitle_cache.dart';
+import 'package:kazumi/services/player/jimaku_subtitle_service.dart';
 import 'package:kazumi/services/video_source/services.dart';
 import 'package:kazumi/bean/dialog/dialog_helper.dart';
 import 'package:mobx/mobx.dart';
@@ -143,6 +145,7 @@ abstract class _VideoPageController with Store implements Disposable {
   final HistoryController historyController;
   final IDownloadRepository downloadRepository;
   final IDownloadManager downloadManager;
+  late final _japaneseSubtitles = JapaneseSubtitleCache(downloadRepository);
 
   WebViewVideoSourceService? _videoSourceService;
 
@@ -579,13 +582,39 @@ abstract class _VideoPageController with Store implements Disposable {
   Future<void> _loadJapaneseSubtitle(
     PlayerController playerController,
     PlaybackInitParams params,
-  ) {
+  ) async {
+    if (!GStorage.getSetting(SettingsKeys.autoLoadJapaneseSubtitle)) return;
+    final jimaku = JimakuSubtitleService.instance;
+    if (params.isLocalPlayback) {
+      // Offline episodes are keyed by their download number, which is also
+      // their danmakuEpisodeNumber.
+      final episodeNumber = params.danmakuEpisodeNumber;
+      final bangumiId = bangumiItem.id;
+      final pluginName = _offlinePluginName;
+      Future<String?> findLocal() =>
+          _japaneseSubtitles.find(bangumiId, pluginName, episodeNumber);
+      if (!jimaku.hasApiKey && await findLocal() == null) return;
+      final episode =
+          downloadRepository.getEpisode(bangumiId, pluginName, episodeNumber);
+      return playerController.subtitles.autoLoadJapanese(
+        episode:
+            episode == null ? episodeNumber : jimakuEpisodeNumber(episode),
+        fetch: () async =>
+            await findLocal() ??
+            (jimaku.hasApiKey
+                ? await _japaneseSubtitles.fetch(
+                    '${pluginName}_$bangumiId', episodeNumber)
+                : null),
+      );
+    }
+    if (!jimaku.hasApiKey) return;
     final name = bangumiItem.name.isNotEmpty
         ? bangumiItem.name
         : params.bangumiName ?? '';
     return playerController.subtitles.autoLoadJapanese(
-      animeName: name,
       episode: params.danmakuEpisodeNumber,
+      fetch: () =>
+          jimaku.fetchEpisodeSubtitle(name, params.danmakuEpisodeNumber),
     );
   }
 
