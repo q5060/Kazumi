@@ -605,6 +605,17 @@ class _PlayerItemPanelState extends State<PlayerItemPanel> {
           selected: isSubtitleTrackSelected(track, current),
         ),
       const Divider(height: 1),
+      SubmenuButton(
+        menuChildren: [
+          for (final (fraction, label) in subtitleMaskOptions)
+            KazumiMenuItem(
+              onPressed: () => subtitles.setMask(fraction),
+              label: label,
+              selected: subtitles.mask == fraction,
+            ),
+        ],
+        child: const Text('遮挡中文字幕'),
+      ),
       KazumiMenuItem(
         onPressed: _searchJapaneseSubtitle,
         label: '搜索日文字幕…',

@@ -475,6 +475,11 @@ class SettingsKeys {
     true,
     group: SettingGroup.player,
   );
+  static const burnedSubtitleMask = SettingKey<double>(
+    'burnedSubtitleMask',
+    0,
+    group: SettingGroup.player,
+  );
   static const jimakuApiKey = SettingKey<String>(
     'jimakuApiKey',
     '',
@@ -655,6 +660,7 @@ class SettingsKeys {
     showRating,
     defaultCollectLayout,
     autoLoadJapaneseSubtitle,
+    burnedSubtitleMask,
     jimakuApiKey,
     downloadParallelEpisodes,
     downloadParallelSegments,

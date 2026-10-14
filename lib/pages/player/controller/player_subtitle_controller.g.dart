@@ -63,12 +63,31 @@ mixin _$PlayerSubtitleController on _PlayerSubtitleController, Store {
     });
   }
 
+  late final _$maskAtom = Atom(
+    name: '_PlayerSubtitleController.mask',
+    context: context,
+  );
+
+  @override
+  double get mask {
+    _$maskAtom.reportRead();
+    return super.mask;
+  }
+
+  @override
+  set mask(double value) {
+    _$maskAtom.reportWrite(value, super.mask, () {
+      super.mask = value;
+    });
+  }
+
   @override
   String toString() {
     return '''
 tracks: ${tracks},
 current: ${current},
-delay: ${delay}
+delay: ${delay},
+mask: ${mask}
     ''';
   }
 }

@@ -36,6 +36,14 @@ String subtitleTrackLabel(SubtitleTrack track) {
   return '轨道 ${track.id}';
 }
 
+/// Fraction of the video height covered at the bottom; 0 disables the mask.
+const List<(double, String)> subtitleMaskOptions = [
+  (0, '关闭'),
+  (0.1, '小'),
+  (0.14, '中'),
+  (0.18, '大'),
+];
+
 String formatSubtitleDelay(double seconds) {
   final sign = seconds > 0 ? '+' : '';
   return '$sign${seconds.toStringAsFixed(1)} 秒';
@@ -64,7 +72,16 @@ abstract class _PlayerSubtitleController with Store {
   @observable
   double delay = 0;
 
+  /// Hides subtitles burned into the video, see [subtitleMaskOptions].
+  @observable
+  double mask = GStorage.getSetting(SettingsKeys.burnedSubtitleMask);
+
   bool get disabled => current.id == 'no';
+
+  void setMask(double fraction) {
+    mask = fraction;
+    GStorage.putSetting(SettingsKeys.burnedSubtitleMask, fraction);
+  }
 
   Player? _player;
   StreamSubscription<Tracks>? _tracksSubscription;
